@@ -1,0 +1,155 @@
+notes a2:
+
+init_executor():
+  - used in main in executor.c after initializing:
+      'pthread_t admission_threads[NUM_QUEUES], execution_threads[NUM_QUEUES];''
+    at the very begining
+  - In executor.c there is a public var: 'struct executor tassadar;''
+    - in jobs.c (our implementation) there
+      is extern 'struct executor tassadar;'
+    - https://www.tutorialspoint.com/extern-keyword-in-c
+      -  "External variables are also known as global variables.
+          These variables are defined outside the function.
+          These variables are available globally throughout
+          the function execution. The value of global
+          variables can be modified by the functions.
+          “extern” keyword is used to declare and define
+          the external variables.
+          - Scope − They are not bound by any function. They are everywhere in the program i.e. global.
+          - Default value − Default initialized value of global variables are Zero.
+          - Lifetime − Till the end of the execution of the program."
+    - so I can change tassadar in executor.c from jobs.c
+    - so init should use tassadar
+
+    file:
+      fscanf in jobs.c
+      x1 x2 x3
+      x1 = id
+      x2 = job_type
+      x3 = num_resources
+    - tassadar executor struct
+      - array of mutex locks, for each resource (need initializing)
+      - initialze each resource_utilization_check as 0
+      - admission_queues
+        - initialize the lock, PTHREAD_MUTEX_INITIALIZER
+        - initialize condition var, PTHREAD_COND_INITIALIZER
+        - capacity = QUEUE_LENGTH
+        - num_admitted = 0
+        - head = 0
+        - tail = 0
+        - initialize job struct
+      - processor_records
+        - intialize completed_jobs
+        - num_completed = 0
+        - intialize lock
+
+      thread:
+          int pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                              void *(*start_routine) (void *), void *arg);
+
+         "The pthread_create() function starts a new thread in the calling
+         process.  The new thread starts execution by invoking
+         start_routine(); arg is passed as the sole argument of
+         start_routine()."
+
+*admit_jobs(void *arg):
+  - argument it takes in is the admission_queue at i
+  - (parse jobs adds every job to its queue corresponding
+    to its jobtype)
+  - parse jobs is called before admitjobs
+  - this handles the thread for a certain admission queue
+  - if num_admitted == capacity:
+    - wait for jobs to execute, so block
+  - else num_admitted < capacity:
+    - admit more jobs to the queue
+    - for every job in the pending list: add it to the queue if theres space
+      - "the last one in the file is the one with the earliest job submission time,
+         so since it gets added to the front of the pending_jobs list,
+         it'll be the first to be admitted into execution out of
+         all jobs in the same admission queue."
+         https://piazza.com/class/jz03dkidcre58z?cid=116
+      - struct job **admitted_jobs;
+        - is an array of pointers to jobs:
+          - == array[] admitdjbs = [*job1, *job2,...,*job3]
+          - use head and tail in arg (admitedjob queue) to keep
+            track of begining and ending of admited queue
+    - if theres no space, block and indicate to execute its ready to run
+
+
+*execute_jobs(void *arg) :
+
+  - "Jobs must acquire the required resource locks before being able to execute.
+    .A job will be assigned a processor id equal to its last required resource
+    from the jobs file."
+  -
+
+
+memory:
+
+  - on heap:
+    - in admission_queue.pending_jobs
+      - jobs
+      - job resources
+
+ex:
+
+1 0 2 0 2
+2 1 2 3 1
+3 1 3 2 0 1
+4 0 1 3
+
+dostuff
+4 0 3
+1 0 2
+3 1 2
+2 1 3
+
+order in completed jobs
+2 3 1
+2 1 0
+3 2 1
+3 4 0
+
+proc2: (last) 3->1 (first)
+proc3: (last) 2->4 (first)
+
+
+ex2:
+5 1 2 0 1
+6 1 2 0 1
+7 1 2 0 1
+8 1 2 0 1
+9 1 2 0 1
+
+dostuff
+9 1 1
+8 1 1
+7 1 1
+6 1 1
+5 1 1
+
+order in completed jobs
+1 5 1
+1 6 1
+1 7 1
+1 8 1
+1 9 1
+
+proc1: 7->8->6->5->9
+
+
+1 1 2 0 1
+2 1 2 0 1
+3 1 2 0 1
+4 1 2 0 1
+5 1 2 0 1
+6 1 2 0 1
+7 1 2 0 1
+8 1 2 0 1
+9 1 2 0 1
+10 1 2 0 1
+11 1 2 0 1
+12 1 2 0 1
+13 1 2 0 1
+14 1 2 0 1
+15 1 2 0 1
